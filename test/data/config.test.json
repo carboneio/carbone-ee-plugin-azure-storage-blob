@@ -1,0 +1,8 @@
+{
+    "storageCredentials": {
+        "accountName": "whateverAccountName",
+        "accountKey": "whateverAccountKey"
+    },
+    "rendersContainer": "whateverRendersContainer",
+    "templatesContainer": "whateverTemplatesContainer"
+}
