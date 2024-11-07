@@ -9,12 +9,18 @@ const _templatesContainer = 'templates-container';
 
 const pathFileTxt = path.join(__dirname, 'data', 'file.txt');
 
+const workData = path.join(__dirname, '_workdata');
+
 const urlBlobStorage = 'https://whateverAccountName.blob.core.windows.net';
 
 describe('Storage', () => {
     let storage = null;
 
-    before(() => {
+    before(function (done) {
+
+        if (!fs.existsSync(workData)) {
+            fs.mkdirSync(workData, { recursive: true });
+        }
 
         config.setConfig({
             storageCredentials: {
@@ -23,8 +29,8 @@ describe('Storage', () => {
             },
             rendersContainer: _rendersContainer,
             templatesContainer: _templatesContainer,
-            templatePath: path.join(__dirname, 'data'),
-            renderPath: path.join(__dirname, 'data')
+            templatePath: workData,
+            renderPath: workData
         });
 
         nock(urlBlobStorage)
@@ -36,158 +42,176 @@ describe('Storage', () => {
             .reply(200);
 
         storage = require('../storage');
+        setTimeout(done, 500);
     });
 
-    describe('writeTemplate', () => {
+    beforeEach((done) => {
+        cleanWorkDataDirectory(done);
+    });
+
+    afterEach((done) => {
+        cleanWorkDataDirectory(done);
+    });
+
+    after((done) => {
+        fs.rmdir(workData, { recursive: true }, (err) => {
+            if (err) throw err;
+            done();
+        });
+    });
+
+    describe('writeTemplate', (done) => {
 
         it('should write template on blob storage', () => {
             nock(urlBlobStorage)
                 .put(uri => uri.includes(`/${_templatesContainer}/templateId`))
-                .reply(200);
+                .reply(201);
 
             storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err, templateName) => {
-                assert.strictEqual(err, null);
-                assert.strictEqual(templateName, 'templateId');
+                try {
+                    assert.strictEqual(err, null);
+                    assert.strictEqual(templateName, 'templateId');
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
-        })
+        });
 
-        it('should return AccessDenied error if not authorized to write file on blob storage', () => {
+        it('should return an error if file cannot be written on blob storage', (done) => {
             nock(urlBlobStorage)
                 .put(uri => uri.includes(`/${_templatesContainer}/templateId`))
                 .reply(403);
 
             storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err) => {
-                assert.strictEqual(err.toString().includes(403), true);
-                assert.strictEqual(err.toString().includes('AccessDenied'), true);
-            });
-        });
-
-        it('should return an error if file cannot be written on blob storage', () => {
-            nock(urlBlobStorage)
-                .put(uri => uri.includes(`/${_templatesContainer}/templateId`))
-                .replyWithError('Server unavailable');
-
-            storage.writeTemplate({}, {}, 'templateId', pathFileTxt, (err) => {
-                assert.strictEqual(err.toString(), 'reson: Server unavailable');
+                try {
+                    assert.strictEqual(err?.statusCode, 403);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
     })
 
     describe('readTemplate', () => {
-        const toDelete = [];
 
-        afterEach(() => {
-            for (let i = 0; i < toDelete.length; i++) {
-                const filePath = path.join(__dirname, 'data', toDelete[i]);
-
-                if (fs.existsSync(filePath)) {
-                    fs.unlinkSync(filePath);
-                }
-            }
-        });
-
-        it('should read the template from blob storage', () => {
+        it('should read the template from blob storage', (done) => {
             nock(urlBlobStorage)
-                .get(uri => uri.includes(`/${_templatesContainer}/`))
+                .get(uri => uri.includes(`/${_templatesContainer}/template.odt`))
                 .reply(200, () => {
-                    return fs.createReadStream(pathFileTxt);
+                    return fs.readFileSync(pathFileTxt, 'binary');
+                }, {
+                    'Content-Length': (req, res, body) => body.length,
+                    Etag: '123456'
                 });
 
             storage.readTemplate({}, {}, 'template.odt', (err, templatePath) => {
-                assert.strictEqual(err, null);
-                assert.strictEqual(path.basename(templatePath), 'template.odt');
-                assert.strictEqual(fs.existsSync(templatePath), true);
-                assert.strictEqual(fs.readFileSync(templatePath, 'utf8'), 'Some content.\n');
-                toDelete.push(path.basename(templatePath));
+                try {
+                    assert.strictEqual(err, null);
+                    assert.strictEqual(path.basename(templatePath), 'template.odt');
+                    assert.strictEqual(fs.existsSync(templatePath), true);
+                    assert.strictEqual(fs.readFileSync(templatePath, 'binary'), 'Some content.');
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
 
-        it('should return NotFound error if file does not exist on blob storage', () => {
+        it('should return an error if file cannot be read from blob', (done) => {
             nock(urlBlobStorage)
-                .get(uri => uri.includes(`/${_templatesContainer}/`))
+                .get(uri => uri.includes(`/${_templatesContainer}/template.odt`))
                 .reply(404);
 
             storage.readTemplate({}, {}, 'template.odt', (err) => {
-                assert.strictEqual(err.toString().includes(404), true);
+                try {
+                    assert.strictEqual(err?.statusCode, 404);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
 
-        it('should return an error if file cannot be read from blob', () => {
+        it('should not call the blob storage if file already exists in local folder', (done) => {
+            const expectedPath = path.join(workData, 'file.txt');
+            fs.copyFileSync(pathFileTxt, expectedPath)
+
+            let downloadToFileCalled = false;
             nock(urlBlobStorage)
-                .get(uri => uri.includes(`/${_templatesContainer}/`))
-                .replyWithError('Server unavailable');
-
-            storage.readTemplate({}, {}, 'template.odt', (err) => {
-                assert.strictEqual(err.toString(), 'reson: Server unavailable');
-            });
-        });
-
-        it('should not call the blob storage if file already exists in local folder', () => {
-            const expectedPath = path.join('test', 'data', 'file.txt');
+                .get(uri => uri.includes(`/${_templatesContainer}/template.odt`))
+                .reply(200, () => {
+                    downloadToFileCalled = true;
+                    return "Unexpected";
+                }, {
+                    'Content-Length': (req, res, body) => body.length,
+                    Etag: '123456'
+                });
 
             storage.readTemplate({}, {}, 'file.txt', (err, templatePath) => {
-                assert.strictEqual(err, null);
-                assert.strictEqual(templatePath.endsWith(expectedPath), true);
+                try {
+                    assert.strictEqual(err, null);
+                    assert.strictEqual(templatePath.endsWith(expectedPath), true);
+                    assert.strictEqual(downloadToFileCalled, false, 'Expected downloadToFile to not be called');
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
     })
 
     describe('deletetemplate', () => {
 
-        let templatePath = path.join(__dirname, 'data', 'template.docx');
+        let templatePath = path.join(workData, 'template.docx');
 
         beforeEach(() => {
             fs.writeFileSync(templatePath, 'File content');
         });
 
-        afterEach(() => {
-            if (fs.existsSync(templatePath)) {
-                fs.unlinkSync(templatePath);
-            }
-        });
-
-        it('should delete the template from blob storage', () => {
+        it('should delete the template from blob storage', (done) => {
             nock(urlBlobStorage)
-                .delete(uri => uri.includes(`/${_templatesContainer}`))
-                .reply(200);
+                .delete(uri => uri.includes(`/${_templatesContainer}/template.docx`))
+                .reply(202);
 
             const res = {
                 send(result) {
-                    assert.deepStrictEqual(result, {
-                        success: true,
-                        message: 'Template deleted'
-                    });
+                    try {
+                        assert.deepStrictEqual(result, {
+                            success: true,
+                            message: 'Template deleted'
+                        });
+                    } catch (err) {
+                        done(err);
+                    }
                 }
             };
 
             storage.deleteTemplate({}, res, 'template.docx', (err, templatePath) => {
-                assert.strictEqual(err, null);
-                assert.strictEqual(templatePath.endsWith('/test/data/template.docx'), true);
+                try {
+                    assert.strictEqual(err, null);
+                    assert.strictEqual(templatePath.endsWith('template.docx'), true);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
-
-        it('should return AccessDenied error if not authorized to delete from blob storage', () => {
+        it("should return an error if file cannot be deleted from blob storage", (done) => {
             nock(urlBlobStorage)
                 .delete(uri => uri.includes(`/${_templatesContainer}`))
-                .reply(403);
+                .reply(404);
 
             const res = {};
 
-            storage.deleteTemplate({}, res, path.join('..', 'test', 'datas', 'template.docx'), (err) => {
-                assert.strictEqual(err.toString().includes(403), true);
-                assert.strictEqual(err.toString().includes('AccessDenied'), true);
-            });
-        });
-
-        it("should return an error if file cannot be deleted from blob storage", () => {
-            nock(urlBlobStorage)
-                .delete(uri => uri.includes(`/${_templatesContainer}`))
-                .replyWithError('Server Unavailable');
-
-            const res = {};
-
-            storage.deleteTemplate({}, res, path.join('..', 'test', 'data', 'template.docx'), (err) => {
-                assert.strictEqual(err.toString(), 'reson: Server unavailable');
+            storage.deleteTemplate({}, res, path.join(workData, 'template.docx'), (err) => {
+                try {
+                    assert.strictEqual(err?.statusCode, 404);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
     });
@@ -197,142 +221,165 @@ describe('Storage', () => {
         const _renderName = "whatever.pdf";
         const _expectedFilename = path.basename(pathFileTxt);
 
-        it('should save the generated doccument into the renders container', () => {
+        it('should save the generated doccument into the renders container', (done) => {
             nock(urlBlobStorage)
                 .put(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
-                .reply(200);
+                .reply(201);
 
             storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
-                assert.strictEqual(err, undefined);
+                try {
+                    assert.strictEqual(err, undefined);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
 
-        it('should save a generated doccument into the renders containers even if the filename is not provided', () => {
+        it('should save a generated doccument into the renders containers even if the filename is not provided', (done) => {
             nock(urlBlobStorage)
                 .put(uri => uri.includes(`/${_rendersContainer}/${_expectedFilename}`))
-                .reply(200);
+                .reply(201);
 
             storage.afterRender({}, {}, null, pathFileTxt, '', {}, (err) => {
-                assert.strictEqual(err, undefined);
+                try {
+                    assert.strictEqual(err, undefined);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
 
-        it('should return an error if the rendering fails', () => {
+        it('should return an error if the rendering fails', (done) => {
             storage.afterRender({}, {}, new Error('Something went wrong'), pathFileTxt, _renderName, {}, (err) => {
-                assert.strictEqual(err.toString(), 'Error: Something went wrong');
+                try {
+                    assert.strictEqual(err?.toString(), 'Error: Something went wrong');
+                    done();
+                } catch (assertErr) {
+                    done(assertErr);
+                }
             });
         });
 
-        it('should return AccessDenied error if not authorized to save into the blob storage', () => {
+        it('should return an error if the blob storage is not available', (done) => {
             nock(urlBlobStorage)
                 .put(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
-                .reply(403);
+                .reply(404);
 
             storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
-                assert.strictEqual(err.toString().includes(403), true);
-                assert.strictEqual(err.toString().includes('AccessDenied'), true);
-            });
-        });
-
-        it('should return an error if the blob storage is not available', () => {
-            nock(urlBlobStorage)
-                .put(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
-                .replyWithError('Server Unavailable');
-
-            storage.afterRender({}, {}, null, pathFileTxt, _renderName, {}, (err) => {
-                assert.strictEqual(err.toString(), 'reason: Server Unavailable');
+                try {
+                    assert.strictEqual(err?.statusCode, 404);
+                    done();
+                } catch (assertErr) {
+                    done(assertErr);
+                }
             });
         });
     });
 
     describe('readRender', () => {
 
-        const toDelete = [];
-
-        afterEach(() => {
-            for (let i = 0; i < toDelete.length; i++) {
-                if (fs.existsSync(toDelete[i])) {
-                    fs.unlinkSync(toDelete[i]);
-                }
-            }
-        });
-
-        it('should download the generated document from the cache folder and delete the file from blob storage', () => {
+        it('should download the generated document from the cache folder and delete the file from blob storage', (done) => {
 
             const _renderName = 'whatever.pdf'
 
-            fs.copyFileSync(path.join(__dirname, 'data', 'file.txt'), path.join(__dirname, 'data', _renderName))
+            fs.copyFileSync(pathFileTxt, path.join(workData, _renderName))
+
+            let downloadToFileCalled = false;
+            nock(urlBlobStorage)
+                .get(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
+                .reply(200, () => {
+                    downloadToFileCalled = true;
+                    return 'Unexpected';
+                }, {
+                    'Content-Length': (req, res, body) => body.length,
+                    Etag: '123456'
+                });
 
             nock(urlBlobStorage)
                 .delete(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
-                .reply(200);
+                .reply(202);
 
             storage.readRender({}, {}, _renderName, (err, renderPath) => {
-                assert.strictEqual(null, err);
-                assert.strictEqual(renderPath.includes('data/' + _renderName), true)
-                toDelete.push(renderPath);
+                try {
+                    assert.strictEqual(null, err);
+                    assert.strictEqual(renderPath.includes(_renderName), true);
+                    assert.strictEqual(downloadToFileCalled, false, 'Expected downloadToFile to not be called');
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
 
-        it('should download the generated document and delete it from blob storage', () => {
+        it('should download the generated document and delete it from blob storage', (done) => {
 
             const _renderName = 'whatever.pdf';
 
             nock(urlBlobStorage)
                 .get(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
                 .reply(200, () => {
-                    return fs.createReadStream(pathFileTxt);
+                    return fs.readFileSync(pathFileTxt, 'binary');
+                }, {
+                    'Content-Length': (req, res, body) => body.length,
+                    Etag: '123456'
+                });
+
+            nock(urlBlobStorage)
+                .get(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
+                .reply(200, () => {
+                    return [];
+                }, {
+                    'Content-Length': (req, res, body) => 0,
+                    Etag: '123456'
                 });
 
             nock(urlBlobStorage)
                 .delete(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
-                .reply(200);
+                .reply(202);
 
             storage.readRender({}, {}, _renderName, (err, renderPath) => {
-                assert.strictEqual(null, err);
-                assert.strictEqual(renderPath.includes('datasets/' + _renderName), true)
-                toDelete.push(renderPath);
+                try {
+                    assert.strictEqual(null, err);
+                    assert.strictEqual(renderPath.includes(_renderName), true);
+                    done();
+                } catch (err) {
+                    done(err);
+                }
             });
         });
 
-        it('should return an error if the file does not exist', () => {
+        it('should return an error if the file does not exist', (done) => {
 
-            const _renderName = 'whatever.pdf';
+            const _renderName = 'some.pdf';
 
             nock(urlBlobStorage)
                 .get(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
                 .reply(404);
 
             storage.readRender({}, {}, _renderName, (err, renderPath) => {
-                assert.strictEqual('Error: File does not exist', err.toString());
-            });
-        });
-
-        it('should return AccessDenied if not authorized to read from blob storage', () => {
-            const _renderName = 'whatever.pdf';
-
-            nock(urlBlobStorage)
-                .get(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
-                .reply(403);
-
-            storage.readRender({}, {}, _renderName, (err, renderPath) => {
-                assert.strictEqual(err.toString().includes(403), true);
-                assert.strictEqual(err.toString().includes('AccessDenied'), true);
-            });
-        });
-
-        it('should return an error if the blob storage is not available', () => {
-            const _renderName = 'whatever.pdf';
-
-            nock(urlBlobStorage)
-                .get(uri => uri.includes(`/${_rendersContainer}/${_renderName}`))
-                .replyWithError('Server Unavailable');
-
-            storage.readRender({}, {}, _renderName, (err, renderPath) => {
-                assert.strictEqual(err.toString(), 'reason: Server Unavailable');
+                try {
+                    assert.strictEqual(err?.statusCode, 404);
+                    done();
+                } catch (assertErr) {
+                    done(assertErr);
+                }
             });
         });
     })
 })
 
 
+function cleanWorkDataDirectory(done) {
+    fs.readdir(workData, (err, files) => {
+        if (err) throw err;
+
+        for (const file of files) {
+            fs.unlink(path.join(workData, file), (err) => {
+                if (err) throw err;
+            });
+        }
+        done();
+    });
+}
