@@ -51,7 +51,14 @@ describe('Config', () => {
                 "accountKey": "whateverAccountKey"
             },
             "rendersContainer": "whateverRendersContainer",
-            "templatesContainer": "whateverTemplatesContainer"
+            "templatesContainer": "whateverTemplatesContainer",
+            "storageRetryOptions": { 
+                "maxTries": 4, 
+                "tryTimeoutInMs": 30000,
+                "retryDelayInMs": 2000,
+                "maxRetryDelayInMs": 30000,
+                "retryPolicyType": 0
+            }
         }
         const _config = config.getConfig();
         assert.deepStrictEqual(_config, _expectedConfig);
