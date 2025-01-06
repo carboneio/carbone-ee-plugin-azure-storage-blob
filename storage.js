@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { BlobServiceClient, StorageSharedKeyCredential } = require('@azure/storage-blob');
+const { BlobServiceClient, StorageSharedKeyCredential, RestError } = require('@azure/storage-blob');
 const config = require('./config');
 
 const _config = config.getConfig();
@@ -19,7 +19,10 @@ if (_config?.storageCredentials) {
   };
   blobServiceClient = new BlobServiceClient(
     blobServiceClientOptions.url,
-    blobServiceClientOptions.credential);
+    blobServiceClientOptions.credential,
+    {
+      retryOptions: _config.storageRetryOptions
+    });
 }
 
 function writeTemplate(req, res, templateId, templatePath, callback) {
@@ -43,9 +46,15 @@ function writeTemplate(req, res, templateId, templatePath, callback) {
         if (response._response.status !== 201) {
           return callback(new Error(`Status: ${response._response.status} | Body: ${response.errorCode ?? response._response.bodyAsText}`));
         }
+        
         return callback(null, templateId);
       })
       .catch(err => {
+        
+        if(err.statusCode === 403) {
+          return callback(new Error('AccessDenied'));
+        }
+
         return callback(err, templateId);
       });
   });
@@ -66,9 +75,7 @@ function readTemplate(req, res, templateId, callback) {
 
       return blockBlobClient.download(0, undefined, downloadOptions)
         .then(response => {
-          if (response._response.status === 404) {
-            return callback(new Error('File does not exist'));
-          }
+          
           if (response._response.status !== 200) {
             return callback(new Error(`Status: ${response._response.status} | Body: ${response.errorCode ?? response._response.bodyAsText}`));
           }
@@ -84,6 +91,17 @@ function readTemplate(req, res, templateId, callback) {
           });
         })
         .catch(err => {
+
+          if(err instanceof RestError ) {
+            if(err.statusCode === 404) {
+              return callback(new Error('404 - Blob does not exist'));
+            }
+
+            return callback(new Error(`${err.statusCode} - ${err.message}`));
+          }
+
+
+
           return callback(err);
         });
     }
@@ -109,7 +127,7 @@ function deleteTemplate(req, res, templateId, callback) {
       return callback(null, templatePath);
     })
     .catch(err => {
-      return callback(err);
+      return handleError(err, callback);
     });
 }
 
@@ -151,7 +169,8 @@ function readRender(req, res, renderId, callback) {
           });
         })
         .catch(err => {
-          return callback(new Error(`Error downloading blob: ${err.message}`));
+          //return callback(new Error(`Error downloading blob: ${err.message}`));
+          return handleError(err, callback);
         });
     } 
     else {
@@ -164,6 +183,19 @@ function readRender(req, res, renderId, callback) {
         });
     }
   });
+}
+
+function handleError(err, callback) {
+  if (err instanceof RestError) {
+    if (err.statusCode === 404) {
+      return callback(new Error('404 - Blob does not exist'));
+    }
+    if (err.statusCode === 403) {
+      return callback(new Error('403 - AccessDenied'));
+    }
+    return callback(new Error(`${err.statusCode} - ${err.message}`));
+  }
+  return callback(err);
 }
 
 function afterRender(req, res, err, reportPath, reportName, stats, callback) {
@@ -189,6 +221,13 @@ function afterRender(req, res, err, reportPath, reportName, stats, callback) {
         return callback();
       })
       .catch(err => {
+        if (err instanceof RestError) {
+          if (err.statusCode === 403) {
+            return callback(new Error('403 - AccessDenied'));
+          }
+          return callback(new Error(`${err.statusCode} - ${err.message}`));
+        }
+        
         return callback(err);
       });
   });
