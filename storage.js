@@ -175,7 +175,7 @@ function afterRender(req, res, err, reportPath, reportName, stats, callback) {
   }
 
   const containerClient = blobServiceClient.getContainerClient(_config.rendersContainer);
-  const blockBlobClient = containerClient.getBlockBlobClient(reportName);
+  const blockBlobClient = containerClient.getBlockBlobClient(path.basename(reportPath));
 
   fs.readFile(reportPath, (err, data) => {
     if (err) {
