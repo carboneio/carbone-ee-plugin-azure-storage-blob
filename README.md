@@ -46,7 +46,7 @@ If you are using **Carbone Docker**, you have to mount the plugin directory as a
 Command for Docker CLI:
 
 ```sh
-docker run --platform linux/amd64 --name carbone -p 4000:4000 -e LANG=C.UTF-8 -v ./plugin:/app/plugin -e AZURE_STORAGE_ACCOUNT=<STORAGE_ACCOUNT_NAME> -e AZURE_STORAGE_KEY=<STORAGE_ACCOUNT_KEY> -e CONTAINER_TEMPLATES='templates' -e CONTAINER_RENDERS='renders' carbone/carbone-ee
+docker run --name carbone -p 4000:4000 -e LANG=C.UTF-8 -v ./plugin:/app/plugin -e AZURE_STORAGE_ACCOUNT=<STORAGE_ACCOUNT_NAME> -e AZURE_STORAGE_KEY=<STORAGE_ACCOUNT_KEY> -e CONTAINER_TEMPLATES='templates' -e CONTAINER_RENDERS='renders' carbone/carbone-ee
 ```
 
 File for Docker-compose:

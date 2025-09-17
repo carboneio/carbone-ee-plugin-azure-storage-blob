@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { BlobServiceClient, StorageSharedKeyCredential } = require('@azure/storage-blob');
+const { DefaultAzureCredential } = require('@azure/identity');
 const config = require('./config');
 
 const _config = config.getConfig();
@@ -9,17 +10,22 @@ const renderDir = _config.renderPath || path.join(__dirname, '..', 'render');
 let blobServiceClient;
 
 if (_config?.storageCredentials) {
-  const sharedKeyCredential = new StorageSharedKeyCredential(
-    _config.storageCredentials.accountName,
-    _config.storageCredentials.accountKey
-  );
-  const blobServiceClientOptions = {
-    credential: sharedKeyCredential,
-    url: `https://${_config.storageCredentials.accountName}.blob.core.windows.net`
-  };
-  blobServiceClient = new BlobServiceClient(
-    blobServiceClientOptions.url,
-    blobServiceClientOptions.credential);
+  if (_config?.storageCredentials?.accountKey ) {
+    const sharedKeyCredential = new StorageSharedKeyCredential(
+      _config.storageCredentials.accountName,
+      _config.storageCredentials.accountKey
+    );
+
+    blobServiceClient = new BlobServiceClient(
+      `https://${_config.storageCredentials.accountName}.blob.core.windows.net`,
+      blobServiceClientOptions.credential);
+  } else {
+    const defaultAzureCredential = new DefaultAzureCredential();
+
+    blobServiceClient = new BlobServiceClient(
+      `https://${_config.storageCredentials.accountName}.blob.core.windows.net`,
+      defaultAzureCredential);
+  }
 }
 
 function writeTemplate(req, res, templateId, templatePath, callback) {
