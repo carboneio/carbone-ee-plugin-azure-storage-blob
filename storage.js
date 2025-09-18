@@ -47,7 +47,6 @@ if (_config?.storageCredentials) {
       .then(response => {
         console.log('Access on '+_config.templatesContainer+' : 🟢 ');
         containerClient.deleteBlob(blobName).then(response => {
-          console.log('Delete test template done')
         }) .catch (err => {
           console.log(err)
         })
@@ -68,7 +67,6 @@ if (_config?.storageCredentials) {
       .then(response => {
         console.log('Access on '+_config.rendersContainer+' : 🟢 ');
         containerClient.deleteBlob(blobName).then(response => {
-          console.log('Delete test render done')
         }) .catch (err => {
           console.log(err)
         })
