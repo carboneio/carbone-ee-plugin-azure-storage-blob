@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { BlobServiceClient, StorageSharedKeyCredential } = require('@azure/storage-blob');
-const { DefaultAzureCredential } = require('@azure/identity');
+const { ManagedIdentityCredential } = require('@azure/identity');
 const config = require('./config');
 
 const _config = config.getConfig();
@@ -20,13 +20,20 @@ if (_config?.storageCredentials) {
 
     blobServiceClient = new BlobServiceClient(
       `https://${_config.storageCredentials.accountName}.blob.core.windows.net`,
-      blobServiceClientOptions.credential);
+      sharedKeyCredential);
   } else {
-    const defaultAzureCredential = new DefaultAzureCredential();
+    let credential;
+    if (_config?.storageCredentials?.identityClientId) {
+      credential = new ManagedIdentityCredential({
+        clientId: _config.storageCredentials.identityClientId,
+      });
+    } else {
+      credential = new ManagedIdentityCredential();
+    }
 
     blobServiceClient = new BlobServiceClient(
       `https://${_config.storageCredentials.accountName}.blob.core.windows.net`,
-      defaultAzureCredential);
+      credential);
   }
 
   // Test connection by creating empty file and delete if

@@ -19,14 +19,17 @@ function getConfig() {
       accountKey: process.env.AZURE_STORAGE_KEY
     }
   } else if (process?.env?.AZURE_STORAGE_ACCOUNT) {
-    console.log('Storage authentication with RBAC');
-
-    if (process?.env?.AZURE_CLIENT_ID && process?.env?.AZURE_TENANT_ID && process?.env?.AZURE_CLIENT_SECRET) {
+    if (process?.env?.AZURE_MANAGED_IDENTITY_CLIENT_ID) {
+      console.log('Storage authentication with Managed Identity user-assigned');
+      config.storageCredentials = {
+        accountName: process.env.AZURE_STORAGE_ACCOUNT,
+        identityClientId: process.env.AZURE_MANAGED_IDENTITY_CLIENT_ID
+      }
+    } else {
+      console.log('Storage authentication with Managed Identity system-assigned');
       config.storageCredentials = {
         accountName: process.env.AZURE_STORAGE_ACCOUNT
       }
-    } else {
-      console.log('Please set AZURE_CLIENT_ID, AZURE_TENANT_ID and AZURE_CLIENT_SECRET');
     }
   }
   if (process?.env?.CONTAINER_RENDERS) {
