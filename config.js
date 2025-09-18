@@ -13,22 +13,22 @@ function getConfig() {
       config = {};
     }
   }
-
-  // Blob storage authentication configuration
   if (process?.env?.AZURE_STORAGE_ACCOUNT && process?.env?.AZURE_STORAGE_KEY) {
-    console.log("Blob access using access key");
     config.storageCredentials = {
       accountName: process.env.AZURE_STORAGE_ACCOUNT,
       accountKey: process.env.AZURE_STORAGE_KEY
     }
   } else if (process?.env?.AZURE_STORAGE_ACCOUNT) {
-    // Only account Name is set. Authentication using AD
-    console.log("Blob access using azure-active-directory");
-    config.storageCredentials = {
-      accountName: process.env.AZURE_STORAGE_ACCOUNT
+    console.log('Storage authentication with RBAC');
+
+    if (process?.env?.AZURE_CLIENT_ID && process?.env?.AZURE_TENANT_ID && process?.env?.AZURE_CLIENT_SECRET) {
+      config.storageCredentials = {
+        accountName: process.env.AZURE_STORAGE_ACCOUNT
+      }
+    } else {
+      console.log('Please set AZURE_CLIENT_ID, AZURE_TENANT_ID and AZURE_CLIENT_SECRET');
     }
   }
-
   if (process?.env?.CONTAINER_RENDERS) {
     config.rendersContainer = process.env.CONTAINER_RENDERS
   }

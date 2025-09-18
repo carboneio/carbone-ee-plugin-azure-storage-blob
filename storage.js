@@ -9,6 +9,8 @@ const templateDir = _config.templatePath || path.join(__dirname, '..', 'template
 const renderDir = _config.renderPath || path.join(__dirname, '..', 'render');
 let blobServiceClient;
 
+console.log("Init plugin");
+
 if (_config?.storageCredentials) {
   if (_config?.storageCredentials?.accountKey ) {
     const sharedKeyCredential = new StorageSharedKeyCredential(
@@ -25,6 +27,49 @@ if (_config?.storageCredentials) {
     blobServiceClient = new BlobServiceClient(
       `https://${_config.storageCredentials.accountName}.blob.core.windows.net`,
       defaultAzureCredential);
+  }
+
+  // Test connection by creating empty file and delete if
+  if (_config?.templatesContainer) {
+    const containerClient = blobServiceClient.getContainerClient(_config.templatesContainer);
+    const content = "Blog storage connection check";
+    const blobName = `test template ${+new Date()}`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    blockBlobClient.upload(content, content.length)
+      .then(response => {
+        console.log('Access on '+_config.templatesContainer+' : 🟢 ');
+        containerClient.deleteBlob(blobName).then(response => {
+          console.log('Delete test template done')
+        }) .catch (err => {
+          console.log(err)
+        })
+      })
+      .catch(err => {
+        console.log('Access on '+_config.templatesContainer+' : 🔴 ('+err+')');
+        _config.templatesContainer = null;
+      });
+  }
+
+  if (_config?.rendersContainer) {
+    const containerClient = blobServiceClient.getContainerClient(_config.rendersContainer);
+    const content = "Blog storage connection check";
+    const blobName = `test render ${+new Date()}`;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    blockBlobClient.upload(content, content.length)
+      .then(response => {
+        console.log('Access on '+_config.rendersContainer+' : 🟢 ');
+        containerClient.deleteBlob(blobName).then(response => {
+          console.log('Delete test render done')
+        }) .catch (err => {
+          console.log(err)
+        })
+      })
+      .catch(err => {
+        console.log('Access on '+_config.rendersContainer+' : 🔴 ('+err+')');
+        _config.rendersContainer=null;
+      });
   }
 }
 
