@@ -56,6 +56,14 @@ CONTAINER_TEMPLATES=STORAGE_CONTAINER_TEMPLATES
 CONTAINER_RENDERS=STORAGE_RENDERS_CONTAINER
 ```
 
+## Strict mode
+
+By default, Carbone is not stopped if access to blob storage fail.
+You can force exit by setting strict mode :
+```dotenv
+STORAGE_STRICT_MODE=true
+```
+
 If you are using **Carbone Docker**, you have to mount the plugin directory as a volume into the container, and you have to define environment variables for Azure Blob Storage credentials
 
 Command for Docker CLI:
