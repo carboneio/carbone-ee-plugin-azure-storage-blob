@@ -38,6 +38,9 @@ function getConfig() {
   if (process?.env?.CONTAINER_TEMPLATES) {
     config.templatesContainer = process.env.CONTAINER_TEMPLATES
   }
+
+  config.storage_strict_mode = (process?.env?.STORAGE_STRICT_MODE === "true" ) ? "true" : "false";
+
   return config;
 }
 

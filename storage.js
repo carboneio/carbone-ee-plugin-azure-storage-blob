@@ -54,6 +54,7 @@ if (_config?.storageCredentials) {
       .catch(err => {
         console.log('Access on '+_config.templatesContainer+' : 🔴 ('+err+')');
         _config.templatesContainer = null;
+        if (_config.storage_strict_mode === "true") process.exit(1);
       });
   }
 
@@ -74,6 +75,7 @@ if (_config?.storageCredentials) {
       .catch(err => {
         console.log('Access on '+_config.rendersContainer+' : 🔴 ('+err+')');
         _config.rendersContainer=null;
+        if (_config.storage_strict_mode === "true") process.exit(1);
       });
   }
 }
