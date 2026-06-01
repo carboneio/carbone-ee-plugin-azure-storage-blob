@@ -13,25 +13,45 @@ function getConfig() {
       config = {};
     }
   }
-  if (process?.env?.AZURE_STORAGE_ACCOUNT && process?.env?.AZURE_STORAGE_KEY) {
+
+  if (process?.env?.AZURE_STORAGE_CONNECTION_STRING) {
     config.storageCredentials = {
-      accountName: process.env.AZURE_STORAGE_ACCOUNT,
-      accountKey: process.env.AZURE_STORAGE_KEY
+      type: "ConnectionString",
+      connectionString: process.env.AZURE_STORAGE_CONNECTION_STRING
     }
-  } else if (process?.env?.AZURE_STORAGE_ACCOUNT) {
-    if (process?.env?.AZURE_MANAGED_IDENTITY_CLIENT_ID) {
-      console.log('Storage authentication with Managed Identity user-assigned');
+  }
+  else {
+    if (process?.env?.AZURE_STORAGE_ACCOUNT && process?.env?.AZURE_STORAGE_KEY) {
       config.storageCredentials = {
+        type: "SharedKey",
         accountName: process.env.AZURE_STORAGE_ACCOUNT,
-        identityClientId: process.env.AZURE_MANAGED_IDENTITY_CLIENT_ID
+        accountKey: process.env.AZURE_STORAGE_KEY
       }
-    } else {
-      console.log('Storage authentication with Managed Identity system-assigned');
-      config.storageCredentials = {
-        accountName: process.env.AZURE_STORAGE_ACCOUNT
+    } else if (process?.env?.AZURE_STORAGE_ACCOUNT) {
+      if (process?.env?.AZURE_USE_DEFAULT_AZURE_CREDENTIALS === "true") {
+        console.log('Storage authentication with DefaultAzureCredential');
+        config.storageCredentials = {
+          type: "DefaultAzureCredential",
+          accountName: process.env.AZURE_STORAGE_ACCOUNT
+        }
+      }
+      else if  (process?.env?.AZURE_MANAGED_IDENTITY_CLIENT_ID) {
+        console.log('Storage authentication with Managed Identity user-assigned');
+        config.storageCredentials = {
+          type: "UserManagedIdentity",
+          accountName: process.env.AZURE_STORAGE_ACCOUNT,
+          identityClientId: process.env.AZURE_MANAGED_IDENTITY_CLIENT_ID
+        }
+      } else {
+        console.log('Storage authentication with Managed Identity system-assigned');
+        config.storageCredentials = {
+          type: "SystemManagedIdentity",
+          accountName: process.env.AZURE_STORAGE_ACCOUNT
+        }
       }
     }
   }
+
   if (process?.env?.CONTAINER_RENDERS) {
     config.rendersContainer = process.env.CONTAINER_RENDERS
   }

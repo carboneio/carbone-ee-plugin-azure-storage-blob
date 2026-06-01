@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { BlobServiceClient, StorageSharedKeyCredential } = require('@azure/storage-blob');
-const { ManagedIdentityCredential } = require('@azure/identity');
+const { ManagedIdentityCredential, DefaultAzureCredential } = require('@azure/identity');
 const config = require('./config');
 
 const _config = config.getConfig();
@@ -12,23 +12,33 @@ let blobServiceClient;
 console.log("Init plugin");
 
 if (_config?.storageCredentials) {
-  if (_config?.storageCredentials?.accountKey ) {
-    const sharedKeyCredential = new StorageSharedKeyCredential(
-      _config.storageCredentials.accountName,
-      _config.storageCredentials.accountKey
-    );
-
-    blobServiceClient = new BlobServiceClient(
-      `https://${_config.storageCredentials.accountName}.blob.core.windows.net`,
-      sharedKeyCredential);
-  } else {
+  if (_config.storageCredentials.type === "ConnectionString") {
+    blobServiceClient = BlobServiceClient.fromConnectionString(_config.storageCredentials.connectionString);
+  }
+  else {
     let credential;
-    if (_config?.storageCredentials?.identityClientId) {
-      credential = new ManagedIdentityCredential({
-        clientId: _config.storageCredentials.identityClientId,
-      });
-    } else {
-      credential = new ManagedIdentityCredential();
+
+    switch (_config.storageCredentials.type) {
+      case "SharedKey":
+        credential = new StorageSharedKeyCredential(
+          _config.storageCredentials.accountName,
+          _config.storageCredentials.accountKey
+        );
+        break;
+
+      case "DefaultAzureCredential":
+        credential = new DefaultAzureCredential();
+        break;
+
+      case "UserManagedIdentity":
+        credential = new ManagedIdentityCredential({
+          clientId: _config.storageCredentials.identityClientId,
+        });
+        break;
+
+      case "SystemManagedIdentity":
+        credential = new ManagedIdentityCredential();
+        break;
     }
 
     blobServiceClient = new BlobServiceClient(
@@ -211,7 +221,7 @@ function readRender(req, res, renderId, callback) {
         .catch(err => {
           return callback(new Error(`Error downloading blob: ${err.message}`));
         });
-    } 
+    }
     else {
       return blobClient.delete()
         .then(() => {

@@ -1,5 +1,6 @@
 {
     "storageCredentials": {
+        "type": "SharedKey",
         "accountName": "whateverAccountName",
         "accountKey": "whateverAccountKey"
     },
