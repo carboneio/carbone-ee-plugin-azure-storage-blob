@@ -9,7 +9,50 @@ const templateDir = _config.templatePath || path.join(__dirname, '..', 'template
 const renderDir = _config.renderPath || path.join(__dirname, '..', 'render');
 let blobServiceClient;
 
-console.log("Init plugin");
+// Reads the git SHA straight from the .git directory (no `git` binary required,
+// since the final Carbone Docker image doesn't have git installed).
+function getGitSha() {
+  try {
+    const gitDir = path.join(__dirname, '.git');
+    const head = fs.readFileSync(path.join(gitDir, 'HEAD'), 'utf8').trim();
+    if (!head.startsWith('ref:')) {
+      return head.slice(0, 8);
+    }
+    const ref = head.slice(5).trim();
+    try {
+      return fs.readFileSync(path.join(gitDir, ref), 'utf8').trim().slice(0, 8);
+    } catch (e) {
+      const packedRefs = fs.readFileSync(path.join(gitDir, 'packed-refs'), 'utf8');
+      const line = packedRefs.split('\n').find(l => l.endsWith(` ${ref}`));
+      return line ? line.split(' ')[0].slice(0, 8) : 'unknown';
+    }
+  } catch (e) {
+    return 'unknown';
+  }
+}
+
+const _authLabel = {
+  ConnectionString: 'Connection string (emulator)',
+  SharedKey: 'Shared key',
+  DefaultAzureCredential: 'Default Azure Credential',
+  UserManagedIdentity: 'Managed Identity (user-assigned)',
+  SystemManagedIdentity: 'Managed Identity (system-assigned)'
+}[_config?.storageCredentials?.type] ?? 'none';
+
+const _pluginInfo = [
+  ['Version (git sha)', getGitSha()],
+  ['Authentication', _authLabel],
+  ..._config?.storageCredentials?.accountName ? [['Storage account', _config.storageCredentials.accountName]] : [],
+  ['Templates container', _config?.templatesContainer ?? 'disabled'],
+  ['Renders container', _config?.rendersContainer ?? 'disabled'],
+  ['Strict mode', _config?.storage_strict_mode === 'true' ? 'enabled' : 'disabled']
+];
+
+console.log('AZURE BLOB STORAGE PLUGIN:');
+console.log('---------------------------');
+for (const [label, value] of _pluginInfo) {
+  console.log(`- ${label.padEnd(20)}: ${value}`);
+}
 
 if (_config?.storageCredentials) {
   if (_config.storageCredentials.type === "ConnectionString") {
