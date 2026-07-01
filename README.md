@@ -33,7 +33,7 @@ npm install
 
 Provide Azure Blob Storage configurations, as environment variables:
 
-### Authorization with Shared Key (for local developpemen not recommended for Container app production deployement)
+### Authorization with Shared Key (for local development not recommended for Container app production deployment)
 ```dotenv
 AZURE_STORAGE_ACCOUNT=STORAGE_ACCOUNT_NAME
 AZURE_STORAGE_KEY=STORAGE_ACCOUNT_KEY
@@ -51,9 +51,35 @@ CONTAINER_RENDERS=STORAGE_RENDERS_CONTAINER
 ### Authorization with User managed Identity
 ```dotenv
 AZURE_STORAGE_ACCOUNT=STORAGE_ACCOUNT_NAME
-AZURE_MANAGED_IDENTITY_CLIENT_ID="Client ID of user_assigned_identity
+AZURE_MANAGED_IDENTITY_CLIENT_ID="Client ID of user_assigned_identity"
 CONTAINER_TEMPLATES=STORAGE_CONTAINER_TEMPLATES
 CONTAINER_RENDERS=STORAGE_RENDERS_CONTAINER
+```
+
+### Authorization with Default Azure Credentials
+```dotenv
+AZURE_STORAGE_ACCOUNT=STORAGE_ACCOUNT_NAME
+AZURE_USE_DEFAULT_AZURE_CREDENTIALS="true"
+CONTAINER_TEMPLATES=STORAGE_CONTAINER_TEMPLATES
+CONTAINER_RENDERS=STORAGE_RENDERS_CONTAINER
+```
+
+Then set the additional environment variables that are needed for DefaultAzureCredential to work. They are [documented here](https://learn.microsoft.com/en-us/javascript/api/overview/azure/identity-readme?view=azure-node-latest#environment-variables).
+
+### Connection to azure storage emulators
+
+When using local emulators, use `AZURE_STORAGE_CONNECTION_STRING` instead of `AZURE_STORAGE_ACCOUNT`:
+
+```dotenv
+AZURE_STORAGE_CONNECTION_STRING=<connection string>
+CONTAINER_TEMPLATES=STORAGE_CONTAINER_TEMPLATES
+CONTAINER_RENDERS=STORAGE_RENDERS_CONTAINER
+```
+
+The azurite emulator default connection string can be [found here](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite#production-style-url):
+
+```
+DefaultEndpointsProtocol=http;AccountName=account1;AccountKey=key1;BlobEndpoint=http://account1.blob.localhost:10000;QueueEndpoint=http://account1.queue.localhost:10001;TableEndpoint=http://account1.table.localhost:10002;
 ```
 
 ## Strict mode
