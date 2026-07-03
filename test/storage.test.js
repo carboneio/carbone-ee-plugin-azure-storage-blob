@@ -243,6 +243,15 @@ describe('Storage', () => {
             });
         });
 
+        it('should skip saving to blob storage for direct download renders (?download=true)', (done) => {
+            const req = { path: '/render/whatever.pdf', query: { download: 'true' } };
+            storage.afterRender(req, {}, null, pathFileTxt, _renderName, {}, (err) => {
+                assert.strictEqual(err, undefined);
+                // No need to assert anything additional: if a call is actually attempted to the storage, it would throw.
+                done();
+            });
+        });
+
         it('should return an error if the rendering fails', (done) => {
             storage.afterRender({}, {}, new Error('Something went wrong'), pathFileTxt, _renderName, {}, (err) => {
                 assert.strictEqual(err.toString(), 'Error: Something went wrong');

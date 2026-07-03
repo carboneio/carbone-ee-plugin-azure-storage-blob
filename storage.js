@@ -281,7 +281,13 @@ function afterRender(req, res, err, reportPath, reportName, stats, callback) {
   if (err) {
     return callback(err);
   }
+  
   if (!_config?.rendersContainer) {
+    return callback();
+  }
+
+  if (req.query?.download === 'true') {
+    // direct downloads renders should not be saved in the storage.
     return callback();
   }
 
