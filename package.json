@@ -1,14 +1,27 @@
 {
     "scripts": {
-        "test": "mocha"
+        "test": "mocha",
+        "build": "tsdown storage.js"
     },
     "dependencies": {
         "@azure/identity": "^4.12.0",
         "@azure/storage-blob": "^12.27.0",
-        "dotenv": "^16.5.0"
+        "dotenv": "^16.5.0",
+        "tsdown": "^0.22.3"
     },
     "devDependencies": {
         "mocha": "^10.8.2",
         "nock": "=13.5.0"
+    },
+    "tsdown": {
+        "format": "cjs",
+        "fixedExtension": false,
+        "deps": {
+            "alwaysBundle": [
+                "@azure/identity",
+                "@azure/storage-blob",
+                "dotenv"
+            ]
+        }
     }
 }
