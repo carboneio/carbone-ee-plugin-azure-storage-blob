@@ -169,13 +169,13 @@ function readTemplate(req, res, templateId, callback) {
     return callback(null, templatePath);
   }
 
-  fs.access(templatePath, fs.F_OK, (err) => {
+  fs.access(templatePath, fs.constants.F_OK, (err) => {
     if (err) {
       const containerClient = blobServiceClient.getContainerClient(_config.templatesContainer);
       const blockBlobClient = containerClient.getBlockBlobClient(templateId);
       const downloadOptions = { abortSignal: AbortController?.signal };
 
-      return blockBlobClient.download(0, undefined, downloadOptions)
+      return blockBlobClient.downloadToFile(templatePath, 0, undefined, downloadOptions)
         .then(response => {
           if (response._response.status === 404) {
             return callback(new Error('File does not exist'));
@@ -183,16 +183,7 @@ function readTemplate(req, res, templateId, callback) {
           if (response._response.status !== 200) {
             return callback(new Error(`Status: ${response._response.status} | Body: ${response.errorCode ?? response._response.bodyAsText}`));
           }
-
-          const stream = response.readableStreamBody;
-          const writableStream = fs.createWriteStream(templatePath);
-          stream.pipe(writableStream);
-          writableStream.on('error', (err) => {
-            return callback(err)
-          });
-          writableStream.on('finish', () => {
-            return callback(null, templatePath);
-          });
+          return callback(null, templatePath);
         })
         .catch(err => {
           return callback(err);
@@ -233,10 +224,11 @@ function readRender(req, res, renderId, callback) {
 
   const containerClient = blobServiceClient.getContainerClient(_config.rendersContainer);
   const blobClient = containerClient.getBlobClient(renderId);
+  const downloadOptions = { abortSignal: AbortController?.signal };
 
   fs.access(renderPath, fs.constants.F_OK, (err) => {
     if (err) {
-      return blobClient.download(0)
+      return blobClient.downloadToFile(renderPath, 0, undefined, downloadOptions)
         .then(response => {
           if (response._response.status === 404) {
             return callback(new Error('File does not exist'))
@@ -245,21 +237,13 @@ function readRender(req, res, renderId, callback) {
             return callback(new Error(`Status: ${response._response.status} | Body: ${response.errorCode ?? response._response.bodyAsText}`))
           }
 
-          const stream = response.readableStreamBody;
-          const writableStream = fs.createWriteStream(renderPath);
-          stream.pipe(writableStream);
-          writableStream.on('error', (err) => {
-            return callback(err)
-          });
-          writableStream.on('finish', () => {
-            blobClient.delete()
-              .then(() => {
-                return callback(null, renderPath)
-              })
-              .catch(err => {
-                return callback(err)
-              });
-          });
+          blobClient.delete()
+            .then(() => {
+              return callback(null, renderPath)
+            })
+            .catch(err => {
+              return callback(err)
+            });
         })
         .catch(err => {
           return callback(new Error(`Error downloading blob: ${err.message}`));
