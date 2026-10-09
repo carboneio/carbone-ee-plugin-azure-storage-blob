@@ -125,6 +125,8 @@ Notes:
 
 Finally, start the Carbone Server, and the following logs will appear. If the connection fails or something goes wrong, an error message will be logged.
 
+> To test the bundled version, execute `npm run build` and change the `docker run` `-v` argument to `-v ./dist/:/app/plugin`
+
 ## Environment Variables
 The plugin supports the following environment variables to change the configuration file name and path:
 
