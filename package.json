@@ -1,7 +1,7 @@
 {
     "scripts": {
         "test": "mocha",
-        "build": "tsdown storage.js"
+        "build": "tsdown storage.js --env.PLUGIN_GIT_SHA=$(git rev-parse --short=8 HEAD)"
     },
     "dependencies": {
         "@azure/identity": "^4.12.0",

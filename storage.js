@@ -12,6 +12,10 @@ let blobServiceClient;
 // Reads the git SHA straight from the .git directory (no `git` binary required,
 // since the final Carbone Docker image doesn't have git installed).
 function getGitSha() {
+  // Injected at build time by `npm run build`, since .git is not shipped with the bundle.
+  if (process.env.PLUGIN_GIT_SHA) {
+    return process.env.PLUGIN_GIT_SHA;
+  }
   try {
     const gitDir = path.join(__dirname, '.git');
     const head = fs.readFileSync(path.join(gitDir, 'HEAD'), 'utf8').trim();
