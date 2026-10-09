@@ -1,6 +1,7 @@
 {
     "scripts": {
         "test": "mocha",
+        "test:e2e": "npm run build && mocha test-e2e --timeout 30000",
         "build": "tsdown storage.js --env.PLUGIN_GIT_SHA=$(git rev-parse --short=8 HEAD)"
     },
     "dependencies": {

@@ -127,6 +127,15 @@ Finally, start the Carbone Server, and the following logs will appear. If the co
 
 > To test the bundled version, execute `npm run build` and change the `docker run` `-v` argument to `-v ./dist/:/app/plugin`. Building requires Node ^22.18.0 or >=24.11.0 (the `tsdown` bundler's requirement); running the plugin itself only requires Node 18.
 
+## Tests
+
+```sh
+npm test          # unit tests (Azure calls mocked with nock)
+npm run test:e2e  # end-to-end tests, requires Docker
+```
+
+The end-to-end tests build the bundle, start [Azurite](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite) and Carbone Community Edition (no license needed) with `dist/` mounted as the plugin, then go through the HTTP API: template upload, render, render download, direct download (`?download=true`), template retrieval from Azure by a fresh Carbone container, and template deletion. Every step checks the blobs actually stored in Azurite. The Carbone image can be changed with `CARBONE_IMAGE` (default `carbone/carbone-ee:slim-5.15.4`).
+
 ## Environment Variables
 The plugin supports the following environment variables to change the configuration file name and path:
 
