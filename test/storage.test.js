@@ -196,7 +196,7 @@ describe('Storage', () => {
 
             const res = {};
 
-            storage.deleteTemplate({}, res, path.join('..', 'test', 'datas', 'template.docx'), (err) => {
+            storage.deleteTemplate({}, res, 'template.docx', (err) => {
                 assert.strictEqual(err.statusCode, 403);
                 done();
             });
@@ -209,7 +209,7 @@ describe('Storage', () => {
 
             const res = {};
 
-            storage.deleteTemplate({}, res, path.join('..', 'test', 'data', 'template.docx'), (err) => {
+            storage.deleteTemplate({}, res, 'template.docx', (err) => {
                 assert.strictEqual(err.statusCode, 400);
                 done();
             });
